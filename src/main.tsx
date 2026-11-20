@@ -9,7 +9,6 @@ import { BrowserRouter, HashRouter } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './query-client';
 import { TimeZoneProvider } from './i18n/TimeZoneProvider';
-import { useAuthStore } from './store/auth-store';
 import { restorePublicPathIntoHash } from './pages/public-routes';
 import { useSessionSync } from './hooks/useSessionSync';
 import { bootstrapSession } from './services/session';
@@ -55,25 +54,6 @@ async function boot(): Promise<void> {
     await startMockApi();
   }
 
-  // Enable preview session when previewRole query param is set (useful for screenshots & review)
-  const urlParams = new URLSearchParams(window.location.search);
-  const previewRole = urlParams.get('previewRole');
-  if (
-    previewRole &&
-    (previewRole === 'doctor' || previewRole === 'facility' || previewRole === 'patient' || previewRole === 'admin')
-  ) {
-    useAuthStore.getState().setSession(
-      {
-        id: `preview-${previewRole}-user`,
-        email: `${previewRole}@docforum.org`,
-        role: previewRole,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-      'preview-token',
-    );
-  }
-
   // Error monitoring: disabled unless a DSN is configured (VITE_SENTRY_DSN).
   // The Pages preview ships without one, so monitoring is off by default.
   // Session replay is deliberately never integrated. All events pass through
@@ -92,8 +72,8 @@ async function boot(): Promise<void> {
   // Silent re-auth on reload (issue #9). Deliberately NOT awaited before
   // render: a cold-started Render instance can take ~40s, and RequireAuth
   // shows a "Restoring your session…" state while this is in flight. If a
-  // session already exists (mock mode / ?previewRole=), this resolves
-  // immediately without a network call.
+  // session already exists (mock mode), this resolves immediately without a
+  // network call.
   void bootstrapSession();
 
   // Wake the cold-started backend early on boot (non-blocking) before the user
